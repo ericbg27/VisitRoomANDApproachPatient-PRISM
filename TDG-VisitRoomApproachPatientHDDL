@@ -1,0 +1,184 @@
+mdp
+
+//HY - Hyphen
+//attr - attribute
+
+//Probabilities and reliabilities
+const double relMove = .95;
+const double relAlarm = .9;
+const double p_open_door3 = .1;
+//const double relMove = 1;
+//const double relAlarm = 1;
+//const double p_open_door3 = .1;
+
+//*************************** VisitRoom ***************************
+
+//Problem initialization
+global at_r1_CL : bool init true;
+const double calcHYtime_r1_CL_room3attrdoor = 40.0;
+const double calcHYtime_r1_room3attrdoor_room3attrinside = 5.0;
+global hasdoor_room3_door3 : bool init true;
+global open_door3 : bool init false;
+
+//Methods effects
+global at_r1_room3attrdoor : bool init false;
+global at_r1_room3attrinside : bool init false;
+
+//Action variables
+global move_r1_CL_room3attrdoor : bool init false;
+global move_r1_room3attrdoor_room3attrinside : bool init false;
+global raiseHYalarm_r1_room3attrdoor : bool init false;
+global opendoor_room3_door3 : bool init false;
+
+//***********************************************************************
+
+//*************************** ApproachPatient ***************************
+
+//Problem initialization
+const double calcHYtime_r1_room3attrinside_patientHYloc = 5.0;
+
+//Methods effects
+global at_r1_patientHYloc : bool init false;
+
+//Action variables
+global move_r1_room3attrinside_patientHYloc : bool init false;
+
+//***********************************************************************
+//Control variables present in every PRISM model
+global acting : bool init false; //Synchronization variable
+global initializing : bool init true;
+global start : bool init false;
+global finish : bool init false;
+global succeeded : bool init false;
+global failed : bool init false;
+global end : bool init false;
+
+//Abstract Tasks variables
+global VisitRoom_r1_CL_room3_door3 : bool init true;
+global ApproachPatient_r1_room3_patientHYloc : bool init false;
+
+//This module will encapsulate in its transitions the methods and actions preconditions
+module VisitRoom_r1_CL_room3_door3 //VisitRoom TDG
+
+    m0 : [0..4] init 0;
+   
+    // These transitions follow the ordering of the TDG (which inherits the orders present in the HDDL definition). The acting variable
+    // expresses that an action is being performed and this module should not make any transitions. The rule of preconditions are: if the
+    // action is the first decomposed by a method, it will inherit the methods preconditions, and if it isn't, it will use only the actions
+    // precondition
+   
+    // Here we will have initialization lines
+    // Each line will have non-probabilistic initializations as guards and one probabilistic initialization as effect
+    // In this example we have only the open_door3 initialization as probabilistic (.1 probability of being true)
+   
+    [] m0=0 & VisitRoom_r1_CL_room3_door3 & at_r1_CL & hasdoor_room3_door3 -> p_open_door3:(m0'=1) & (open_door3'=true) + (1-p_open_door3):(m0'=1) & (open_door3'=false); //Initialization line
+    [] m0=1 & at_r1_CL & !acting -> (m0'=2) & (move_r1_CL_room3attrdoor'=true) & (acting'=true);
+    [] m0=2 & at_r1_room3attrdoor & !open_door3 & hasdoor_room3_door3 & !acting-> (m0'=3) & (raiseHYalarm_r1_room3attrdoor'=true) & (acting'=true);
+    [] m0=2 & at_r1_room3attrdoor & open_door3 & hasdoor_room3_door3 & !acting -> (m0'=4) & (move_r1_room3attrdoor_room3attrinside'=true) & (acting'=true);
+    [] m0=3 & hasdoor_room3_door3 & !acting -> (m0'=2) & (opendoor_room3_door3'=true) & (acting'=true);
+    // Transition to ApproachPatient (Sequential AND)
+    [] m0=4 & !acting & VisitRoom_r1_CL_room3_door3 -> (m0'=4) & (VisitRoom_r1_CL_room3_door3'=false) & (ApproachPatient_r1_room3_patientHYloc'=true);
+
+endmodule
+
+//This module will encapsulate in its transitions the methods and actions preconditions
+module ApproachPatient_r1_room3_patientHYloc //ApproachPatient TDG
+
+    m1 : [0..4] init 0;
+
+    [] m1=0 & ApproachPatient_r1_room3_patientHYloc & at_r1_room3attrinside -> (m1'=1);
+    [] m1=1 & at_r1_room3attrinside & !acting -> (m1'=2) & (move_r1_room3attrinside_patientHYloc'=true) & (acting'=true);
+    [] m1=2 & !succeeded & !acting -> (m1'=2) & (succeeded'=true);
+
+endmodule
+
+module move_r1_CL_room3attrdoor //Action module
+
+    m2 : [0..2] init 0;
+   
+    [move_r1_CL_room3attrdoor] m2=0 & move_r1_CL_room3attrdoor -> (m2'=1);
+    [] m2=1 -> relMove:(m2'=0) & (at_r1_CL'=false) & (at_r1_room3attrdoor'=true) & (move_r1_CL_room3attrdoor'=false) & (acting'=false) + (1-relMove):(m2'=2) & (move_r1_CL_room3attrdoor'=false);
+    [] m2=2 & !failed -> (m2'=2) & (failed'=true);
+
+endmodule
+
+module move_r1_room3attrdoor_room3attrinside //Action module
+
+    m3 : [0..2] init 0;
+   
+    [move_r1_room3attrdoor_room3attrinside] m3=0 & move_r1_room3attrdoor_room3attrinside -> (m3'=1);
+    [] m3=1 -> relMove:(m3'=0) & (at_r1_room3attrdoor'=false) & (at_r1_room3attrinside'=true) & (move_r1_room3attrdoor_room3attrinside'=false) & (acting'=false) + (1-relMove):(m3'=2) & (move_r1_room3attrdoor_room3attrinside'=false);
+    [] m2=2 & !failed -> (m3'=2) & (failed'=true);
+
+endmodule
+
+module raiseHYalarm_r1_room3attrdoor //Action module
+
+    m4 : [0..2] init 0;
+   
+    [raiseHYalarm_r1_room3attrdoor] m4=0 & raiseHYalarm_r1_room3attrdoor -> (m4'=1);
+    [] m4=1 -> relAlarm:(m4'=0) & (raiseHYalarm_r1_room3attrdoor'=false) & (acting'=false) + 1-relAlarm:(m4'=2) & (raiseHYalarm_r1_room3attrdoor'=false);
+    [] m4=2 & !failed -> (m4'=2) & (failed'=true);
+
+endmodule
+
+module opendoor_room3_door3 //Action module
+
+    m5 : [0..2] init 0;
+   
+    [opendoor_room3_door3] m5=0 & opendoor_room3_door3 -> (m5'=1);
+    [] m5=1 -> (m5'=0) & (opendoor_room3_door3'=false) & (open_door3'=true) & (acting'=false);
+    [] m5=2 & !failed -> (m5'=2) & (failed'=true);
+
+endmodule
+
+module move_r1_room3attrinside_patientHYloc
+
+    m6 : [0..2] init 0;
+   
+    [move_r1_room3attrinside_patientHYloc] m6=0 & move_r1_room3attrinside_patientHYloc -> (m6'=1);
+    [] m6=1 -> relMove:(m6'=0) & (at_r1_room3attrinside'=false) & (at_r1_patientHYloc'=true) & (move_r1_room3attrinside_patientHYloc'=false) & (acting'=false) + (1-relMove):(m6'=2) & (move_r1_room3attrinside_patientHYloc'=false);
+    [] m6=2 & !failed -> (m6'=2) & (failed'=true);
+
+endmodule
+
+module success
+
+    s : bool init false;
+   
+    m7 : [0..1];
+   
+    [] m7=0 & succeeded -> (m7'=1) & (s'=true);
+    [] m7=1 & !end -> (m7'=1) & (end'=true);
+
+endmodule
+
+module failure
+
+    f : bool init false;
+   
+    m8 : [0..1];
+   
+    [] m8=0 & failed -> (m8'=1) & (f'=true);
+    [] m8=1 & !end -> (m8'=1) & (end'=true);
+
+endmodule
+
+module end
+
+    m9 : [0..1];
+   
+    [] m9=0 & end -> (m9'=1);
+    [] m9=1 -> (m9'=1);
+
+endmodule
+
+formula success = (succeeded);
+formula failure = (failed);
+
+rewards "time"
+    [move_r1_CL_room3attrdoor] true : calcHYtime_r1_CL_room3attrdoor;
+    [move_r1_room3attrdoor_room3attrinside] true : calcHYtime_r1_room3attrdoor_room3attrinside;
+    [raiseHYalarm_r1_room3attrdoor] true : 30;
+    [move_r1_room3attrinside_patientHYloc] true : calcHYtime_r1_room3attrinside_patientHYloc;
+endrewards
